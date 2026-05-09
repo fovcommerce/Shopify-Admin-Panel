@@ -13,6 +13,9 @@ const AuthContext = createContext<AuthContextType | null>(null)
 const DEMO_ADMINS: Array<AdminUser & { password: string }> = [
   { id: '1', name: 'Harsh Vikram Singh', email: 'admin@shopify-panel.com', role: 'super_admin', password: 'admin123' },
   { id: '2', name: 'Jane Admin', email: 'jane@shopify-panel.com', role: 'admin', password: 'admin123' },
+  { id: '3', name: 'Krishna', email: 'krishna@shopify-panel.com', role: 'admin', password: 'admin123' },
+  { id: '4', name: 'Akash', email: 'akash@shopify-panel.com', role: 'admin', password: 'admin123' },
+  { id: '5', name: 'Vishal', email: 'vishal@shopify-panel.com', role: 'admin', password: 'admin123' },
 ]
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
