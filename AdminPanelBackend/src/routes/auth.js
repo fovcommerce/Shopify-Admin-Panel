@@ -9,6 +9,7 @@ const DEMO_ADMINS = [
     role: "super_admin",
     password: "admin123",
   },
+
   {
     id: "3",
     name: "Krishna",
