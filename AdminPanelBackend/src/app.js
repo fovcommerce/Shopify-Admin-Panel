@@ -10,11 +10,11 @@ app.use(cors({ origin: '*' }))
 app.use(express.json())
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }))
+app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
 
-// Routes — no /api prefix here so the Netlify Function works cleanly.
-// The local dev server (index.js) adds /api when mounting.
-app.use('/auth', authRouter)
-app.use('/stores', storesRouter)
-app.use('/users', storesRouter)
+// Routes with /api prefix — matches both local dev and Netlify Function paths
+app.use('/api/auth', authRouter)
+app.use('/api/stores', storesRouter)
+app.use('/api/users', storesRouter)
 
 module.exports = app
