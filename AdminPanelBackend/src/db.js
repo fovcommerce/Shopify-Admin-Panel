@@ -5,7 +5,8 @@ let isConnected = false
 async function connectDB() {
   if (isConnected) return
 
-  const uri = process.env.MONGODB_URI
+  // Trim whitespace and strip any accidental surrounding quotes
+  const uri = (process.env.MONGODB_URI || '').trim().replace(/^["']|["']$/g, '')
   if (!uri) throw new Error('MONGODB_URI is not defined in .env')
 
   await mongoose.connect(uri)
