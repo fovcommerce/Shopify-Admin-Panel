@@ -3,7 +3,7 @@ const express = require('express')
 const cors = require('cors')
 const { connectDB } = require('./db')
 
-const usersRouter = require('./routes/users')
+const storesRouter = require('./routes/users')
 const authRouter = require('./routes/auth')
 
 const app = express()
@@ -13,11 +13,12 @@ app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }))
 app.use(express.json())
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }))
-app.use('/api/auth', authRouter)
-app.use('/api/stores', usersRouter)  // also keep /api/users as alias
-app.use('/api/users', usersRouter)
 
-// Connect to MongoDB then start the server
+// Local dev keeps /api prefix
+app.use('/api/auth', authRouter)
+app.use('/api/stores', storesRouter)
+app.use('/api/users', storesRouter)
+
 connectDB()
   .then(() => {
     app.listen(PORT, () => console.log(`🚀 Admin API running on http://localhost:${PORT}`))

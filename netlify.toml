@@ -1,0 +1,20 @@
+[build]
+  # Install backend deps first (needed by the Netlify Function), then build frontend
+  command = "cd AdminPanelBackend && npm install && cd ../AdminPanelFrontend && npm install && npm run build"
+  publish = "AdminPanelFrontend/dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Proxy /api/* calls to the Netlify Function (strips the /api prefix)
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# SPA fallback — all routes serve index.html so React Router works
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
