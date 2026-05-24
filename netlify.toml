@@ -1,6 +1,6 @@
 [build]
   # Install backend deps first (needed by the Netlify Function), then build frontend
-  command = "cd AdminPanelBackend && npm install && cd ../AdminPanelFrontend && npm install && npm run build"
+  command = "npm install && cd AdminPanelBackend && npm install && cd ../AdminPanelFrontend && npm install && npm run build"
   publish = "AdminPanelFrontend/dist"
 
 [functions]
