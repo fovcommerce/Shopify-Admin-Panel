@@ -1,4 +1,4 @@
-import type { User, DashboardStats } from '@/types'
+import type { Store, DashboardStats } from '@/types'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 
@@ -14,15 +14,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
-export interface UsersResponse {
-  data: User[]
+export interface StoresResponse {
+  data: Store[]
   total: number
   page: number
   limit: number
   totalPages: number
 }
 
-export interface UsersQuery {
+export interface StoresQuery {
   page?: number
   limit?: number
   search?: string
@@ -31,13 +31,13 @@ export interface UsersQuery {
 }
 
 export const api = {
-  getUsers: (query: UsersQuery = {}): Promise<UsersResponse> => {
+  getStores: (query: StoresQuery = {}): Promise<StoresResponse> => {
     const params = new URLSearchParams()
     Object.entries(query).forEach(([k, v]) => {
       if (v != null && v !== '') params.set(k, String(v))
     })
-    return request<UsersResponse>(`/users?${params}`)
+    return request<StoresResponse>(`/stores?${params}`)
   },
-  getUser: (id: string): Promise<User> => request<User>(`/users/${id}`),
-  getStats: (): Promise<DashboardStats> => request<DashboardStats>('/users/stats'),
+  getStore: (id: string): Promise<Store> => request<Store>(`/stores/${id}`),
+  getStats: (): Promise<DashboardStats> => request<DashboardStats>('/stores/stats'),
 }

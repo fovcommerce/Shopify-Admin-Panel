@@ -1,72 +1,113 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { api } from '@/lib/api'
-import type { User } from '@/types'
+import type { Store } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, Store, Mail, Phone, Globe, MapPin, Building2, CreditCard, Calendar, ShoppingCart, DollarSign } from 'lucide-react'
+import {
+  ArrowLeft,
+  ShoppingBag,
+  Calendar,
+  Webhook,
+  RefreshCw,
+  Wifi,
+  WifiOff,
+  CheckCircle2,
+  Circle,
+} from 'lucide-react'
 
-const STATUS_VARIANT = {
+const STATUS_VARIANT: Record<string, 'success' | 'secondary' | 'destructive'> = {
   active: 'success',
   inactive: 'secondary',
-  suspended: 'destructive',
-} as const
+  uninstalled: 'destructive',
+}
 
-const PLAN_VARIANT = {
+const PLAN_VARIANT: Record<string, 'secondary' | 'info' | 'warning' | 'success'> = {
   free: 'secondary',
   starter: 'info',
   growth: 'warning',
   enterprise: 'success',
-} as const
+}
 
 const ONBOARDING_STEPS = [
-  { key: 'account_created', label: 'Account Created' },
-  { key: 'store_connected', label: 'Store Connected' },
-  { key: 'products_synced', label: 'Products Synced' },
-  { key: 'first_campaign', label: 'First Campaign' },
-  { key: 'completed', label: 'Completed' },
+  { key: 'store_installed', label: 'Store Installed' },
+  { key: 'walmart_connected', label: 'Walmart Connected' },
+  { key: 'completed', label: 'Fully Active' },
 ]
 
-function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value?: string | null }) {
+const STEP_ORDER = ['store_installed', 'walmart_connected', 'completed']
+
+function shopInitials(shop: string): string {
+  return shop
+    .replace('.myshopify.com', '')
+    .split(/[-_]/)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('')
+    .slice(0, 2)
+}
+
+function InfoRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null
   return (
-    <div className="flex items-start gap-3">
-      <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-      <div>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-sm font-medium">{value}</p>
-      </div>
+    <div className="flex flex-col gap-0.5">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium break-all">{value}</p>
     </div>
   )
 }
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const [user, setUser] = useState<User | null>(null)
+  const [store, setStore] = useState<Store | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!id) return
     api
-      .getUser(id)
-      .then(setUser)
-      .catch(() => setError('User not found.'))
+      .getStore(id)
+      .then(setStore)
+      .catch(() => setError('Store not found.'))
       .finally(() => setLoading(false))
   }, [id])
 
-  if (loading) return <Shell><p className="text-muted-foreground">Loading user…</p></Shell>
-  if (error || !user) return <Shell><p className="text-red-500">{error || 'User not found.'}</p></Shell>
+  if (loading) {
+    return (
+      <Shell>
+        <p className="text-muted-foreground">Loading store…</p>
+      </Shell>
+    )
+  }
 
-  const initials = user.name.split(' ').map((n) => n[0]).join('').slice(0, 2)
-  const currentStepIndex = ONBOARDING_STEPS.findIndex((s) => s.key === user.onboardingStep)
+  if (error || !store) {
+    return (
+      <Shell>
+        <p className="text-red-500">{error || 'Store not found.'}</p>
+      </Shell>
+    )
+  }
+
+  const initials = shopInitials(store.shop)
+  const currentStepIndex = STEP_ORDER.indexOf(store.onboardingStep)
+  const creditPct =
+    store.orderCreditsLimit > 0
+      ? Math.min(100, Math.round((store.orderCreditsUsed / store.orderCreditsLimit) * 100))
+      : 0
+
+  const wfsEnabled = store.settings.wfs_enabled
+  const mcsEnabled = store.settings.mcs_enabled
+  const matchStrategy = store.settings.match_strategy
+  const inventorySyncDirection = store.settings.inventory_sync_direction
+
+  const scopeEntries = store.walmartScopes?.scopes
+    ? Object.entries(store.walmartScopes.scopes).filter(([, v]) => v)
+    : []
 
   return (
     <Shell>
-      {/* Header */}
       <div className="flex items-start gap-4 mb-6">
         <Link to="/users">
           <Button variant="outline" size="sm" className="gap-1">
@@ -75,50 +116,57 @@ export default function UserDetailPage() {
         </Link>
         <div className="flex items-center gap-4 flex-1">
           <Avatar className="h-14 w-14">
-            <AvatarFallback className="text-lg bg-primary/10 text-primary font-semibold">{initials}</AvatarFallback>
+            <AvatarFallback className="text-lg bg-primary/10 text-primary font-semibold">
+              {initials || <ShoppingBag className="h-6 w-6" />}
+            </AvatarFallback>
           </Avatar>
           <div>
-            <h2 className="text-xl font-bold text-slate-900">{user.name}</h2>
-            <p className="text-muted-foreground text-sm">{user.email}</p>
-            <div className="flex gap-2 mt-1.5">
-              <Badge variant={STATUS_VARIANT[user.status]} className="capitalize">{user.status}</Badge>
-              <Badge variant={PLAN_VARIANT[user.plan]} className="capitalize">{user.plan}</Badge>
+            <h2 className="text-xl font-bold text-slate-900 font-mono">{store.shop}</h2>
+            <div className="flex gap-2 mt-1.5 flex-wrap">
+              <Badge variant={STATUS_VARIANT[store.status] ?? 'secondary'} className="capitalize">
+                {store.status}
+              </Badge>
+              <Badge variant={PLAN_VARIANT[store.plan] ?? 'secondary'} className="capitalize">
+                {store.plan}
+              </Badge>
             </div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column */}
+        {/* Left column — 2/3 */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Onboarding progress */}
+          {/* Onboarding Progress */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Onboarding Progress</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-5">
                 <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                   <div
                     className="h-full rounded-full bg-blue-500 transition-all"
-                    style={{ width: `${user.onboardingProgress}%` }}
+                    style={{ width: `${store.onboardingProgress}%` }}
                   />
                 </div>
-                <span className="text-sm font-semibold text-blue-600">{user.onboardingProgress}%</span>
+                <span className="text-sm font-semibold text-blue-600 shrink-0">
+                  {store.onboardingProgress}%
+                </span>
               </div>
-              <div className="flex justify-between gap-1">
+              <div className="flex justify-between gap-2">
                 {ONBOARDING_STEPS.map((step, i) => {
                   const done = i <= currentStepIndex
-                  const current = i === currentStepIndex
                   return (
-                    <div key={step.key} className="flex flex-col items-center gap-1 flex-1">
-                      <div
-                        className={`h-6 w-6 rounded-full border-2 flex items-center justify-center text-xs font-bold
-                          ${current ? 'border-blue-500 bg-blue-500 text-white' : done ? 'border-blue-500 bg-blue-100 text-blue-600' : 'border-muted bg-muted text-muted-foreground'}`}
-                      >
-                        {done ? '✓' : i + 1}
-                      </div>
-                      <p className="text-[10px] text-center text-muted-foreground leading-tight">{step.label}</p>
+                    <div key={step.key} className="flex flex-col items-center gap-1.5 flex-1">
+                      {done ? (
+                        <CheckCircle2 className="h-6 w-6 text-blue-500" />
+                      ) : (
+                        <Circle className="h-6 w-6 text-muted-foreground/40" />
+                      )}
+                      <p className="text-[11px] text-center text-muted-foreground leading-tight">
+                        {step.label}
+                      </p>
                     </div>
                   )
                 })}
@@ -126,95 +174,198 @@ export default function UserDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Account stats */}
+          {/* Credits & Usage */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Account Stats</CardTitle>
+              <CardTitle className="text-base">Credits &amp; Usage</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-green-50 flex items-center justify-center">
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold">${user.totalRevenue.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">Total Revenue</p>
-                  </div>
+            <CardContent className="space-y-4">
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Order Credits Used</p>
+                  <p className="text-2xl font-bold">
+                    {store.orderCreditsUsed}
+                    <span className="text-base font-normal text-muted-foreground">
+                      {' '}
+                      / {store.orderCreditsLimit}
+                    </span>
+                  </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-blue-50 flex items-center justify-center">
-                    <ShoppingCart className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold">{user.ordersCount.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">Total Orders</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-purple-50 flex items-center justify-center">
-                    <Calendar className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold">{new Date(user.joinedAt).toLocaleDateString()}</p>
-                    <p className="text-xs text-muted-foreground">Joined</p>
-                  </div>
-                </div>
+                <Badge
+                  variant={store.returnsEnabled ? 'success' : 'secondary'}
+                  className="mb-1"
+                >
+                  Returns {store.returnsEnabled ? 'Enabled' : 'Disabled'}
+                </Badge>
               </div>
+              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    creditPct >= 90 ? 'bg-red-500' : creditPct >= 70 ? 'bg-amber-500' : 'bg-primary'
+                  }`}
+                  style={{ width: `${creditPct}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">{creditPct}% of limit used</p>
             </CardContent>
           </Card>
 
-          {/* Account details */}
+          {/* Store Settings */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Account Details</CardTitle>
+              <CardTitle className="text-base">Store Settings</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <InfoRow icon={Mail} label="Email" value={user.email} />
-              <InfoRow icon={Mail} label="Billing Email" value={user.accountDetails.billingEmail} />
-              <InfoRow icon={Phone} label="Phone" value={user.accountDetails.phone} />
-              <InfoRow icon={Building2} label="Company" value={user.accountDetails.company} />
-              <InfoRow icon={Globe} label="Website" value={user.accountDetails.website} />
-              <InfoRow icon={MapPin} label="Address" value={user.accountDetails.address} />
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-xs text-muted-foreground">WFS Enabled</p>
+                  <Badge
+                    variant={wfsEnabled ? 'success' : 'secondary'}
+                    className="w-fit"
+                  >
+                    {wfsEnabled ? 'Yes' : 'No'}
+                  </Badge>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-xs text-muted-foreground">MCS Enabled</p>
+                  <Badge
+                    variant={mcsEnabled ? 'success' : 'secondary'}
+                    className="w-fit"
+                  >
+                    {mcsEnabled ? 'Yes' : 'No'}
+                  </Badge>
+                </div>
+                {matchStrategy != null && (
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-xs text-muted-foreground">Match Strategy</p>
+                    <p className="text-sm font-medium capitalize">
+                      {String(matchStrategy).replace(/_/g, ' ')}
+                    </p>
+                  </div>
+                )}
+                {inventorySyncDirection != null && (
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-xs text-muted-foreground">Inventory Sync Direction</p>
+                    <p className="text-sm font-medium capitalize">
+                      {String(inventorySyncDirection).replace(/_/g, ' ')}
+                    </p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Right column */}
+        {/* Right column — 1/3 */}
         <div className="space-y-6">
+          {/* Store Info */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Store Info</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <InfoRow icon={Store} label="Shopify Store" value={user.shopifyStore} />
-              <InfoRow icon={Globe} label="Country" value={user.country} />
+              <div className="flex flex-col gap-0.5">
+                <p className="text-xs text-muted-foreground">Shop URL</p>
+                <p className="text-sm font-medium font-mono break-all">{store.shop}</p>
+              </div>
+              {store.billingStatus && (
+                <>
+                  <Separator />
+                  <InfoRow label="Billing Status" value={store.billingStatus} />
+                </>
+              )}
               <Separator />
-              <InfoRow icon={Calendar} label="Joined" value={new Date(user.joinedAt).toLocaleString()} />
-              <InfoRow icon={Calendar} label="Last Active" value={new Date(user.lastActiveAt).toLocaleString()} />
+              <div className="flex items-center gap-2">
+                <Webhook className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Webhooks</p>
+                  <p className="text-sm font-medium">{store.webhookCount}</p>
+                </div>
+              </div>
+              {store.lastOrderSync && (
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Last Order Sync</p>
+                    <p className="text-sm font-medium">
+                      {new Date(store.lastOrderSync).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Installed At</p>
+                  <p className="text-sm font-medium">
+                    {new Date(store.installedAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              {store.uninstalledAt && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-red-400 shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Uninstalled At</p>
+                    <p className="text-sm font-medium text-red-600">
+                      {new Date(store.uninstalledAt).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
+          {/* Walmart Connection */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Subscription</CardTitle>
+              <CardTitle className="text-base">Walmart Connection</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <CreditCard className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold capitalize">{user.plan} Plan</p>
-                  <p className="text-xs text-muted-foreground">Current pricing tier</p>
-                </div>
+              <div className="flex items-center gap-2">
+                {store.walmartConnected ? (
+                  <>
+                    <Wifi className="h-4 w-4 text-green-600" />
+                    <Badge variant="success">Connected</Badge>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="h-4 w-4 text-muted-foreground" />
+                    <Badge variant="secondary">Not Connected</Badge>
+                  </>
+                )}
               </div>
-              <Badge
-                variant={PLAN_VARIANT[user.plan]}
-                className="capitalize w-full justify-center py-1"
-              >
-                {user.plan.charAt(0).toUpperCase() + user.plan.slice(1)}
-              </Badge>
+              {store.walmartClientId && (
+                <>
+                  <Separator />
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-xs text-muted-foreground">Client ID</p>
+                    <p className="text-sm font-medium font-mono break-all">
+                      {store.walmartClientId}
+                    </p>
+                  </div>
+                </>
+              )}
+              {store.walmartScopes && (
+                <>
+                  <Separator />
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-muted-foreground">Scopes Status</p>
+                    <Badge variant={store.walmartScopes.all_ok ? 'success' : 'warning'}>
+                      {store.walmartScopes.all_ok ? 'All OK' : 'Missing Scopes'}
+                    </Badge>
+                  </div>
+                  {scopeEntries.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {scopeEntries.map(([scope]) => (
+                        <Badge key={scope} variant="outline" className="text-xs">
+                          {scope}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -227,8 +378,8 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">User Detail</h1>
-        <p className="text-muted-foreground">Full profile and account information</p>
+        <h1 className="text-2xl font-bold text-slate-900">Store Detail</h1>
+        <p className="text-muted-foreground">Full profile and store information</p>
       </div>
       {children}
     </div>

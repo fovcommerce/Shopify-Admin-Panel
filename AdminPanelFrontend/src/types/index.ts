@@ -1,36 +1,35 @@
-export type OnboardingStep =
-  | 'account_created'
-  | 'store_connected'
-  | 'products_synced'
-  | 'first_campaign'
-  | 'completed'
+export type OnboardingStep = 'store_installed' | 'walmart_connected' | 'completed'
 
-export type PricingPlan = 'free' | 'starter' | 'growth' | 'enterprise'
+export type PricingPlan = 'free' | 'starter' | 'growth' | 'enterprise' | string
 
-export type UserStatus = 'active' | 'inactive' | 'suspended'
+export type StoreStatus = 'active' | 'inactive' | 'uninstalled'
 
-export interface User {
+export interface WalmartScopes {
+  scopes?: Record<string, boolean>
+  missing?: string[]
+  all_ok?: boolean
+}
+
+export interface Store {
   id: string
-  name: string
-  email: string
-  avatarUrl?: string
-  status: UserStatus
+  shop: string
+  status: StoreStatus
   plan: PricingPlan
+  billingStatus: string | null
   onboardingStep: OnboardingStep
   onboardingProgress: number
-  shopifyStore: string
-  country: string
-  joinedAt: string
-  lastActiveAt: string
-  totalRevenue: number
-  ordersCount: number
-  accountDetails: {
-    phone?: string
-    company?: string
-    website?: string
-    billingEmail: string
-    address?: string
-  }
+  walmartConnected: boolean
+  walmartClientId: string | null
+  returnsEnabled: boolean
+  orderCreditsUsed: number
+  orderCreditsLimit: number
+  installedAt: string
+  uninstalledAt: string | null
+  updatedAt: string
+  lastOrderSync: string | null
+  settings: Record<string, unknown>
+  webhookCount: number
+  walmartScopes: WalmartScopes | null
 }
 
 export interface AdminUser {
@@ -41,10 +40,10 @@ export interface AdminUser {
 }
 
 export interface DashboardStats {
-  totalUsers: number
-  activeUsers: number
+  totalStores: number
+  activeStores: number
+  uninstalledStores: number
   newThisMonth: number
-  churnedThisMonth: number
-  planBreakdown: Record<PricingPlan, number>
+  planBreakdown: Record<string, number>
   onboardingBreakdown: Record<OnboardingStep, number>
 }
